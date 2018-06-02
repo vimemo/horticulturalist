@@ -33,13 +33,7 @@ const performDeployment = (deployDoc, mode, apps, firstRun=false) => {
 const watchForDeployments = (mode, apps) => {
   info('Watching for deployments');
 
-  const watch = DB.app.changes({
-    live: true,
-    since: 'now',
-    doc_ids: [ HORTI_UPGRADE_DOC, LEGACY_0_8_UPGRADE_DOC],
-    include_docs: true,
-    timeout: false,
-  });
+  const watch = api.changes();
 
   // TODO: consider a more robust solution?
   // If we lose connection and then reconnect we may miss an upgrade doc.
@@ -72,8 +66,8 @@ const watchForDeployments = (mode, apps) => {
       const legacyDeployInfo = deployDoc.deploy_info;
 
       // We will see this write and go through the HORTI_UPGRADE_DOC if block
-      return DB.app.remove(deployDoc)
-        .then(() => DB.app.put({
+      await api.remove(deployDoc)
+      api.update({
           _id: HORTI_UPGRADE_DOC,
           schema_version: 1,
           user: legacyDeployInfo.user,
@@ -84,7 +78,7 @@ const watchForDeployments = (mode, apps) => {
             version: legacyDeployInfo.version
           },
           action: 'install'
-        }));
+        });
     }
   });
 };

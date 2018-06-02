@@ -1,5 +1,4 @@
-const DB = require('./dbs'),
-      utils = require('./utils');
+const utils = require('./utils');
 const { info, debug } = require('./log');
 
 const {
@@ -7,43 +6,28 @@ const {
   ACTIONS
 } = require('./constants');
 
-const getUpgradeDoc = () => {
-  return DB.app.get(HORTI_UPGRADE_DOC)
-    .catch(err => {
-      if (err.status !== 404) {
-        throw err;
-      }
-    });
-};
 
 const buildInfo = (version) => {
   if (version.startsWith('@')) {
-    debug('Version is a channel, finding out the latest version');
-    version = version.substring(1);
-    return DB.builds.query('builds/releases', {
-      startkey: [version, 'medic', 'medic', {}],
-      endkey: [version, 'medic', 'medic'],
-      descending: true,
-      limit: 1
-    }).then(results => {
-      if (results.rows.length === 0) {
-        throw new Error(`There are currently no builds for the '${version}' channel`);
-      } else {
-        debug(`Found ${results.rows[0].id}`);
-        const [namespace, application, version] = results.rows[0].id.split(':');
-        return {
-          namespace: namespace,
-          application: application,
-          version: version
-        };
-      }
-    });
+    debug('Version is a channel, finding out the latest version')
+    version = version.substring(1)
+    const releases = api.releases()
+    if (results.rows.length === 0) {
+      throw new Error(`There are currently no builds for the '${version}' channel`)
+    }
+    debug(`Found ${results.rows[0].id}`)
+    const [namespace, application, version] = results.rows[0].id.split(':')
+    return {
+      namespace: namespace,
+      application: application,
+      version: version
+    };
   } else {
-    return Promise.resolve({
+    return {
       namespace: 'medic',
       application: 'medic',
       version: version
-    });
+    };
   }
 };
 
