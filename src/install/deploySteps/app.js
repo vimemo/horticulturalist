@@ -3,7 +3,6 @@ class App {
     if (!ddoc._attachments[module]) {
       throw Error(`${module} was specified in build_info.node_modules but is not attached`);
     }
-
     this.name = module.substring(0, module.lastIndexOf('-'))
     this.attachmentName = module
     this.digest = ddoc._attachments[module].digest

@@ -1,11 +1,11 @@
 const ChangedApps = require('./changed-apps')
 
-module.exports = (apps, mode, deployDoc) => {
+module.exports = (mode, deployDoc) => {
   const processDdoc = (ddoc, firstRun) => {
     const changedApps = new ChangedApps(ddoc, mode)
     if (changedApps.appsToDeploy) {
       changedApps.unzip()
-      mode.daemon && apps.stop()
+      mode.daemon && stopApps(mode)
     }
     stagedDdocs.deploy()
     changedApps.appsToDeploy && await changedApp.updateSymlinkAndRemoveOldVersion()
