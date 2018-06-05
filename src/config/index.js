@@ -1,72 +1,61 @@
-const argv = parseArgs(process.argv, {
-  default: {
-    daemon: true
-  }
-})
-
-if (active(argv.dev, argv.local, argv['medic-os']).length !== 1) {
-  help.outputHelp();
-  error('You must pick one mode to run in.');
-  return;
-}
-
-const MODES = {
-  development: {
-    name: 'development',
-    deployments: './temp/deployments',
-    start: [ 'bin/svc-start', './temp/deployments', '{{app}}' ],
-    stop: [ 'bin/svc-stop', '{{app}}' ],
-    manageAppLifecycle: true,
-  },
-  local: {
-    name: 'local',
-    deployments: `${os.homedir()}/.horticulturalist/deployments`,
-    start: [ 'horti-svc-start', `${os.homedir()}/.horticulturalist/deployments`, '{{app}}' ],
-    stop: [ 'horti-svc-stop', '{{app}}' ],
-    manageAppLifecycle: true,
-  },
-  medic_os: {
-    name: 'Medic OS',
-    deployments: '/srv/software',
-    start: ['sudo', '-n', '/boot/svc-start', '{{app}}' ],
-    stop: ['sudo', '-n', '/boot/svc-stop', '{{app}}' ],
-    // MedicOS will start and stop apps, though we will still restart them
-    // when upgrading
-    manageAppLifecycle: false,
-  },
-}
-
-if (argv.version || argv.v) {
-  help.outputVersion()
-  return
-}
-
-if (!mode || argv.help || argv.h) {
-  help.outputHelp()
-  return
-}
-
-if (active(argv.install, argv.stage, argv['complete-install']).length > 1) {
-  help.outputHelp()
-  error('Pick only one action to perform')
-  return
-}
+const  help = require('help').
+  parseArgs = require('minimist'),
+      MODES = require('./modes'),
+{ ACTIONS } = require('./constants'),
+       help = require('./help'),
+  { error } = require('./log')
 
 const active = (...things) => things.filter(t => !!t)
 
-const action = argv.install             ? ACTIONS.INSTALL :
-               argv.stage               ? ACTIONS.STAGE :
-               argv['complete-install'] ? ACTIONS.COMPLETE :
-               undefined
-
-let version = argv.install || argv.stage
-if (version === true) {
-  version = 'master'
+const action = argv => {
+  return  argv.install             ? ACTIONS.INSTALL :
+          argv.stage               ? ACTIONS.STAGE :
+          argv['complete-install'] ? ACTIONS.COMPLETE :
+          undefined
 }
 
-const mode = argv.dev         ? MODES.development :
-             argv.local       ? MODES.local :
-             argv['medic-os'] ? MODES.medic_os :
-             undefined;
+const modex = argv => {
+  const mode = argv.dev         ? MODES.development :
+               argv.local       ? MODES.local :
+               argv['medic-os'] ? MODES.medic_os :
+               undefined;
+  if(mode) {
+    mode.daemon = argv.daemon
+  }
+  return mode
+}
 
-mode.daemon = argv.daemon
+class Config {
+  constructor(process) {
+    const argv = parseArgs(process.argv, {default: {daemon: true}})
+    if (argv.version || argv.v) {
+      help.outputVersion()
+    } if (active(argv.dev, argv.local, argv['medic-os']).length !== 1) {
+      help.outputHelp()
+      error('You must pick one mode to run in.')
+    } else if (active(argv.install, argv.stage, argv['complete-install']).length > 1) {
+      help.outputHelp()
+      error('Pick only one action to perform')
+    } else {
+      const mode = modex(argv)
+      if (!mode || argv.help || argv.h) {
+        help.outputHelp()
+      } else {
+        if (!mode.daemon && !action(argv)) {
+          help.outputHelp()
+          error('--no-daemon does not do anything without also specifiying an action')
+        } else {
+          this.mode = mode
+          this.version = (argv.install || argv.stage) && 'master'
+        }
+      }
+    }
+
+    !this.mode && process.exit(0)
+    process.on('uncaughtException', err => {
+      error('********FATAL********')
+      error(err)
+      process.exit(1)
+    })
+  }
+}

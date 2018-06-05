@@ -1,26 +1,27 @@
+const install = require('./install')
+const fatality = require('./utils/fatality')
+
 class Deployment {
   constructor(deployDoc, mode) {
-    this.deployDoc = deployDoc
+    this.doc = deployDoc
+    this.action = deployDoc.action
   }
 
   isNew() {
-    return !!this.deployDoc &&
-      !this.deployDoc._deleted &&
-      this.deployDoc._id === HORTI_UPGRADE_DOC &&
-    (this.deployDoc.action !== ACTIONS.STAGE ||
-     !this.deployDoc.staging_complete)
+    return !!this.doc &&
+      !this.doc._deleted &&
+      this.doc._id === HORTI_UPGRADE_DOC &&
+    (this.doc.action !== ACTIONS.STAGE || !this.doc.staging_complete)
   }
 
   run(firstRun=false) => {
-    let action
-    if (!this.deployDoc.action || this.deployDoc.action === ACTIONS.INSTALL) {
-      action = install.install(this.deployDoc, this.mode, firstRun)
-    } else if (this.deployDoc.action === ACTIONS.STAGE) {
-      action = install.stage(this.deployDoc)
-    } else if (deployDoc.action === ACTIONS.COMPLETE) {
-      action = install.complete(this.deployDoc, mode, firstRun)
+    if (!this.action || this.action === ACTIONS.INSTALL) {
+      install.install(this.doc, this.mode, firstRun)
+    } else if (this.action === ACTIONS.STAGE) {
+      install.stage(this.doc)
+    } else if (this.action === ACTIONS.COMPLETE) {
+      install.complete(this.doc, mode, firstRun)
     }
-    return action
   }
 
   static watch(mode) {

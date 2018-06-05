@@ -9,10 +9,20 @@ try {
   wait lockfile(process, config.mode)
   let deployDoc = api.deployDoc(config.action)
 
-  mode.manageAppLifecycle && mode.daemon && startApps()
-  const deployment = new Deployment(deployDoc, mode)
+  if(config.mode.manageAppLifecycle && config.mode.daemon) {
+    startApps(config.mode.startCmd)
+  }
+  const deployment = new Deployment(deployDoc, config.mode)
   deployment.isNew() && deployment.run(true)
-  mode.daemon && deployment.watch(mode)
+  config.mode.daemon && deployment.watch(config.mode)
+
+  // clearing of the lockfile is handled by the lockfile library itself
+  onExit(async (code) => {
+    if(config.mode.manageAppLifecycle && config.mode.daemon){
+      await stopApps(config.mode.stopCmd)
+    }
+    process.exit(code || 0)
+  })  
 } catch(err) {
   log.error('********FATAL********')
   log.error(err)

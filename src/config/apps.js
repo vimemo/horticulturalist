@@ -1,7 +1,11 @@
 const child_process = require('child_process')
 const debug = require('./log').debug
 
-const execute = (cmd) => {
+const APPS = [ 'medic-api', 'medic-sentinel' ]
+
+const execute = (cmd, app) => {
+  cmd = cmd.map(sub => sub.replace(/{{app}}/g, app))
+
   return new Promise((resolve, reject) => {
     const proc = child_process.spawn(cmd.shift(), cmd, {
       stdio: [ 'ignore', process.stdout, process.stderr ],
@@ -12,22 +16,24 @@ const execute = (cmd) => {
   })
 }
 
-const APPS = [ 'medic-api', 'medic-sentinel' ]
+async startApps(cmd) {
+  await Promise.all(APPS.map(async (app) => {
+    debug(`Starting app: ${app} with command: ${cmd}…`)
+    await execForApp(cmd, app)
+    debug(`Started ${app} in the background.`)
+  }))
 
-startApps() {
-  // cmd = cmd.map(sub => sub.replace(/{{app}}/g, app))
-  // APPS.reduce((p, app) => p await execForApp(startCmd, app)
 }
 
-stopApps() {
+async stopApps(cmd) {
+  await Promise.all(APPS.map(async (app) => {
+    debug(`Stopping app: ${app} with command: ${cmd}…`)
+    await execForApp(cmd, app)
+    debug(`Stopped ${app}.`)
+  }))
 }
 
-stopAppsSync() {
-  // cmd = cmd.map(sub => sub.replace(/{{app}}/g, app))
-  // APPS.forEach(app => { execForApp(stopCmd, app) }
+module.exports = {
+  startApps: cmd => startApps(cmd),
+  stopApps: cmd => stopApps(cmd)
 }
-
-// debug(`Starting app: ${app} with command: ${startCmd}…`))
-// debug(`Started ${app} in the background.`)),
-// .then(() => debug(`Stopping app: ${app} with command: ${startCmd}…`))
-// .then(() => debug(`Stopped ${app}.`)),

@@ -1,6 +1,6 @@
 module.exports = {
   displayName: 'jest:test',
-  runner: 'jest-runner-mocha',
+  // runner: 'jest-runner-mocha',
   testMatch: ['<rootDir>/tests/**/*.js'],
   testEnvironment: 'node',
   collectCoverageFrom: ['<rootDir>/src/**/*.{js}'],

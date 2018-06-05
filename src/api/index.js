@@ -2,32 +2,27 @@ const {
   HORTI_UPGRADE_DOC,
   ACTIONS
 } = require('./constants');
+const dbs = requre('./dbs');
 
 class Api {
   constructor() {
-    this.db = DB.app
-    this.builds = DB.builds
+    this.db = dbs.app
+    this.builds = dbs.builds
   }
-  // keyFromthis.doc(this.doc)
-  getBuildsDoc(key) {
-    return this.builds.get(key, { attachments: true, binary: true })
-  }
-  getOneFromView(view) { return this.db.query(view, {limit: 1}) }
-  getOne(id) { return this.db.get(id) }
-  update(x) { return this.db.put(x) }
+
+  get(id) { return this.db.get(id) }
+  getFromView(view) { return this.db.query(view, {limit: 1}) }
   remove(deployDoc) { return this.db.remove(deployDoc) }
   bulkDocs(docs) { return this.db.bulkDocs(docs) }
   getAll(ids) { return (await this.db.allDocs({keys: deployIds})).rows }
 
-  async getUpgradeDoc() {
-    try {
-      return await this.getOne(HORTI_UPGRADE_DOC)
-    } catch(err) {
-      err.status !== 404 && throw err
-    }
+  update(doc) {
+    const {rev} = await this.db.put(doc)
+    doc._rev = rev
+    return doc
   }
 
-  async getStagedDdocs(includeDocs, attachments) {
+  async stagedDdocs(includeDocs, attachments) {
     const {rows} = await this.db.allDocs({
       startkey: '_design/:staged:',
       endkey: '_design/:staged:\ufff0',
@@ -39,37 +34,10 @@ class Api {
       : rows.map(r => ({_id: r.id, _rev: r.value.rev}))
   }
 
-  async release(version) {
-    const releases = await this.db.query('builds/releases', {
-      startkey: [version, 'medic', 'medic', {}],
-      endkey: [version, 'medic', 'medic'],
-      descending: true,
-      limit: 1
-    })
-    if (releases.length === 0) {
-      throw new Error(`There are currently no builds for the '${version}' channel`)
-    }
-    debug(`Found ${releases[0].id}`)
-    return releases[0].id.split(':')
-    // const [namespace, application, version] = api.release()
-    // return {
-    //   namespace: namespace,
-    //   application: application,
-    //   version: version
-    // }
-  }
-
-  const buildInfo = version => {
-    if (version.startsWith('@')) { // debug('Version is a channel, finding out the latest version')
-      return api.release(version.substring(1))
-    }
-    return {namespace: 'medic', application: 'medic', version: version}
-  }
-
-  async changes() {
+  async changes(since='now') {
     return await this.db.changes({
       live: true,
-      since: 'now',
+      since: since,
       doc_ids: [ HORTI_UPGRADE_DOC, LEGACY_0_8_UPGRADE_DOC],
       include_docs: true,
       timeout: false,
@@ -83,8 +51,12 @@ class Api {
     return await Promise.all([this.db.compact(), this.db.viewCleanup()])
   }
 
-  getAttachments(id) {
+  attachments(id) {
     return this.db.get(id, {attachments: true, binary: true})
+  }
+
+  getBuildsDoc(id) {
+    return this.builds.get(id, { attachments: true, binary: true })
   }
 
   bulkDocs(docs) {
@@ -98,29 +70,54 @@ class Api {
     return result
   }
 
-  utilsUpdate(doc) {
-    const {rev} = await this.update(doc)
-    doc._rev = rev
-    return doc
+  async release(ver) {
+    const releases = await this.db.query('builds/releases', {
+      startkey: [ver, 'medic', 'medic', {}],
+      endkey: [ver, 'medic', 'medic'],
+      descending: true,
+      limit: 1
+    })
+    if (releases.length === 0) {
+      throw new Error(`There are currently no builds for the '${ver}' channel`)
+    }
+    debug(`Found ${releases[0].id}`)
+    const [namespace, application, version] = releases[0].id.split(':')
+    return {namespace, application, version}
   }
 
-  deployDoc(action) {
-    let doc = await getUpgradeDoc()
+  buildInfo(ver) {
+    if (ver.startsWith('@')) { // debug('Version is a channel, finding out the latest version')
+      return this.release(ver.substring(1))
+    }
+    return {namespace: 'medic', application: 'medic', version: ver}
+  }
+
+  async upgradeDoc() {
+    try {
+      return await this.db.get(HORTI_UPGRADE_DOC)
+    } catch(err) {
+      err.status !== 404 && throw err
+      return null
+    }
+  }
+
+  async deployDoc(action) {
+    let doc = await this.upgradeDoc()
     if(action === Action.COMPLETE) {
       !doc && throw Error('There is no installation to complete')
       !doc.staging_complete && throw Error('A deploy exists but it is not ready to complete')
       doc.action = ACTIONS.COMPLETE
-      api.update(doc)
+      this.update(doc)
     } else if(_.contains([Action.INSTALL, Action.STATE], action)) {
       doc = {
         _id: HORTI_UPGRADE_DOC,
         user: 'horticulturalist cli',
         created: new Date().getTime(),
         action: action,
-        build_info: await api.buildInfo(version),
+        build_info: await this.buildInfo(version),
         _rev: doc && doc._rev
       }
-      api.update(doc)
+      this.update(doc)
     }
     return doc
   }

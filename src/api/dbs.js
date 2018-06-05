@@ -1,6 +1,6 @@
 const request = require('request-promise-native'),
-        {URL} = require('url');
-const PouchDB = require('pouchdb');
+        {URL} = require('url'),
+      PouchDB = require('pouchdb')
 
 const STAGING_URL = 'https://staging.dev.medicmobile.org/_couch/builds';
 
