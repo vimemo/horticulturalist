@@ -32,10 +32,10 @@ module.exports = {
   stage: deployDoc => {
     await predeploySteps(deployDoc)
     deployDoc.staging_complete = true
-    return utils.update(deployDoc);
+    return utils.update(deployDoc)
   },
   complete: (deployDoc, mode, firstRun) => {
-    return deploySteps(mode, deployDoc, firstRun);
+    return deploySteps(mode, deployDoc, firstRun)
   }
 }
 

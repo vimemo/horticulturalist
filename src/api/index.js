@@ -22,6 +22,58 @@ class Api {
     return doc
   }
 
+  async release(ver) {
+    const releases = await this.db.query('builds/releases', {
+      startkey: [ver, 'medic', 'medic', {}],
+      endkey: [ver, 'medic', 'medic'],
+      descending: true,
+      limit: 1
+    })
+    if (releases.length === 0) {
+      throw new Error(`There are currently no builds for the '${ver}' channel`)
+    }
+    debug(`Found ${releases[0].id}`)
+    const [namespace, application, version] = releases[0].id.split(':')
+    return {namespace, application, version}
+  }
+
+  buildInfo(ver) {
+    if (ver.startsWith('@')) { // debug('Version is a channel, finding out the latest version')
+      return this.release(ver.substring(1))
+    }
+    return {namespace: 'medic', application: 'medic', version: ver}
+  }
+
+  async upgradeDoc() {
+    try {
+      return await this.db.get(HORTI_UPGRADE_DOC)
+    } catch(err) {
+      err.status !== 404 && throw err
+      return null
+    }
+  }
+
+  async deployDoc(action) {
+    let doc = await this.upgradeDoc()
+    if(action === ACTIONS.COMPLETE) {
+      !doc && throw Error('There is no installation to complete')
+      !doc.staging_complete && throw Error('A deploy exists but it is not ready to complete')
+      doc.action = ACTIONS.COMPLETE
+      this.update(doc)
+    } else if([ACTIONS.INSTALL, ACTIONS.STATE].includes(action)) {
+      doc = {
+        _id: HORTI_UPGRADE_DOC,
+        user: 'horticulturalist cli',
+        created: new Date().getTime(),
+        action: action,
+        build_info: await this.buildInfo(version),
+        _rev: doc && doc._rev
+      }
+      this.update(doc)
+    }
+    return doc
+  }
+
   async stagedDdocs(includeDocs, attachments) {
     const {rows} = await this.db.allDocs({
       startkey: '_design/:staged:',
@@ -68,57 +120,5 @@ class Api {
       throw error
     }
     return result
-  }
-
-  async release(ver) {
-    const releases = await this.db.query('builds/releases', {
-      startkey: [ver, 'medic', 'medic', {}],
-      endkey: [ver, 'medic', 'medic'],
-      descending: true,
-      limit: 1
-    })
-    if (releases.length === 0) {
-      throw new Error(`There are currently no builds for the '${ver}' channel`)
-    }
-    debug(`Found ${releases[0].id}`)
-    const [namespace, application, version] = releases[0].id.split(':')
-    return {namespace, application, version}
-  }
-
-  buildInfo(ver) {
-    if (ver.startsWith('@')) { // debug('Version is a channel, finding out the latest version')
-      return this.release(ver.substring(1))
-    }
-    return {namespace: 'medic', application: 'medic', version: ver}
-  }
-
-  async upgradeDoc() {
-    try {
-      return await this.db.get(HORTI_UPGRADE_DOC)
-    } catch(err) {
-      err.status !== 404 && throw err
-      return null
-    }
-  }
-
-  async deployDoc(action) {
-    let doc = await this.upgradeDoc()
-    if(action === Action.COMPLETE) {
-      !doc && throw Error('There is no installation to complete')
-      !doc.staging_complete && throw Error('A deploy exists but it is not ready to complete')
-      doc.action = ACTIONS.COMPLETE
-      this.update(doc)
-    } else if(_.contains([Action.INSTALL, Action.STATE], action)) {
-      doc = {
-        _id: HORTI_UPGRADE_DOC,
-        user: 'horticulturalist cli',
-        created: new Date().getTime(),
-        action: action,
-        build_info: await this.buildInfo(version),
-        _rev: doc && doc._rev
-      }
-      this.update(doc)
-    }
-    return doc
   }
 }

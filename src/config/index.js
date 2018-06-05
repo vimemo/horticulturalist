@@ -47,6 +47,7 @@ class Config {
         } else {
           this.mode = mode
           this.version = (argv.install || argv.stage) && 'master'
+          this.manageAppMode = mode.manageAppLifecycle && mode.daemon
         }
       }
     }

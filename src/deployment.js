@@ -1,16 +1,17 @@
-const install = require('./install')
-const fatality = require('./utils/fatality')
+const install = require('./install'),
+     fatality = require('./utils/fatality')
 
 class Deployment {
   constructor(deployDoc, mode) {
     this.doc = deployDoc
     this.action = deployDoc.action
+    this.mode = mode
   }
 
   isNew() {
     return !!this.doc &&
-      !this.doc._deleted &&
-      this.doc._id === HORTI_UPGRADE_DOC &&
+            !this.doc._deleted &&
+            this.doc._id === HORTI_UPGRADE_DOC &&
     (this.doc.action !== ACTIONS.STAGE || !this.doc.staging_complete)
   }
 

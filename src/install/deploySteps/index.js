@@ -7,11 +7,14 @@ module.exports = (mode, deployDoc) => {
       changedApps.unzip()
       mode.daemon && stopApps(mode)
     }
+    // ===================================
     stagedDdocs.deploy()
     changedApps.appsToDeploy && await changedApp.updateSymlinkAndRemoveOldVersion()
+    // ===================================
+
     mode.daemon && (changedApps.appsToDeploy || firstRun)) && await apps.start()
-  };
-};
+  }
+}
 
 // debug('No apps to deploy');
 

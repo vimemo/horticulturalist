@@ -1,32 +1,32 @@
 #!/usr/bin/env node
-const   Apps = require('./apps'),
+const    api = require('./api'),
       daemon = require('./daemon'),
-    lockfile = require('./lockfile'),
-         log = require('./log')
+    lockfile = require('./config/lockfile'),
+    fatality = require('./utils/fatality'),
+ { info, error } = require('./log')
 
-try {
-  const config = config(process)
-  wait lockfile(process, config.mode)
-  let deployDoc = api.deployDoc(config.action)
+const run = async () => {
+  try {
+    const config = new Config()
+    const mode = config.mode
+    info(`Starting Horticulturalist ${require('../package.json').version} \
+          ${mode.daemon ? 'daemon ' : ''}in ${mode.name} mode`)
+    wait lockfile.wait(mode.deployments)
+    const deployDoc = api.deployDoc(config.action)
 
-  if(config.mode.manageAppLifecycle && config.mode.daemon) {
-    startApps(config.mode.startCmd)
-  }
-  const deployment = new Deployment(deployDoc, config.mode)
-  deployment.isNew() && deployment.run(true)
-  config.mode.daemon && deployment.watch(config.mode)
+    config.manageAppMode && startApps(mode.startCmd)
 
-  // clearing of the lockfile is handled by the lockfile library itself
-  onExit(async (code) => {
-    if(config.mode.manageAppLifecycle && config.mode.daemon){
-      await stopApps(config.mode.stopCmd)
-    }
-    process.exit(code || 0)
-  })  
-} catch(err) {
-  log.error('********FATAL********')
-  log.error(err)
-  process.exit(1)
+    const deployment = new Deployment(deployDoc, mode)
+    deployment.isNew() && deployment.run(true)
+
+    mode.daemon && deployment.watch(mode)
+
+    // clearing of the lockfile is handled by the lockfile library itself
+    onExit(async (code) => {
+      config.manageAppMode && await stopApps(mode.stopCmd)
+      process.exit(code || 0)
+    })
+  } catch(fatality)
 }
 
-// info(`Starting Horticulturalist ${require('../package.json').version} ${mode.daemon ? 'daemon ' : ''}in ${mode.name} mode`)
+await run()

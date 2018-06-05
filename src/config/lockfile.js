@@ -6,30 +6,24 @@ const lockfile = require('lockfile'),
 
 const LOCK_FILE = path.join(os.homedir(), '.horticulturalist.lock');
 
-class Lockfile {
-  constructor(config) {
-    if(Lockfile.exists()) {
-      throw new Error(`Lock file already exists at ${Lockfile.path()}. \
-                       Cannot start horticulturalising.`)
-    }
-    await lockfile.wait()
-    fs.mkdirs(config.mode.deployments)
-  }
+const exists = () => {
+  return lockfile.checkSync(LOCK_FILE)
+}
 
-  wait() {
-    new Promise((resolve, reject) => {
-      lockfile.lock(LOCK_FILE, err => {
-        if(err) reject(err)
-        else resolve()
-      })
-    })
-  }
+const fpath = () => {
+  return path.resolve(LOCK_FILE)
+}
 
-  static exists() {
-    return lockfile.checkSync(LOCK_FILE)
+const wait = (dir) => {
+  if(exists()) {
+    throw new Error(`Lock file already exists at ${fpath()}. \
+                     Cannot start horticulturalising.`)
   }
+  await lockfile.wait()
+  await lockfile.lock(LOCK_FILE)
+  fs.mkdirs(dir)
+}
 
-  static path() {
-    return path.resolve(LOCK_FILE)
-  }
+export = {
+  wait: (dir) => wait(dir)
 }
